@@ -57,8 +57,8 @@ public final class CustomArrayList<T> implements List<T> {
     }
 
     @Override
-    public Iterator<T> iterator() {
-        return null;
+    public ListIterator<T> iterator() {
+        return new CustomListIterator();
     }
 
     @Override
@@ -76,7 +76,7 @@ public final class CustomArrayList<T> implements List<T> {
         Objects.requireNonNull(t);
 
         if (contains(t)) {
-            return false;
+            throw new IllegalArgumentException("Duplicate element");
         }
         if (size == capacity) {
             resizeInnerArray();
@@ -105,23 +105,16 @@ public final class CustomArrayList<T> implements List<T> {
 
     @Override
     public boolean addAll(Collection<? extends T> c) {
-        List<T> nonDuplicates = filterNonDuplicates(c);
-        if (!(nonDuplicates.size() > 0)) {
-            return false;
-        }
-        addAndShiftUp(nonDuplicates);
+        checkAndfilterNonDuplicates(c);
+        addAndShiftUp(c);
         return true;
     }
 
     @Override
     public boolean addAll(int index, Collection<? extends T> c) {
-        List<T> nonDuplicates = filterNonDuplicates(c);
-        if (nonDuplicates.size() > 0) {
-            addAndShiftUp(index, nonDuplicates);
-            return true;
-        }
-
-        return false;
+        checkAndfilterNonDuplicates(c);
+        addAndShiftUp(index, c);
+        return true;
     }
 
     @Override
@@ -157,7 +150,13 @@ public final class CustomArrayList<T> implements List<T> {
 
     @Override
     public void add(int index, T element) {
+        Objects.requireNonNull(element);
         checkIndex(index);
+        addAndShiftUp(index, element);
+    }
+
+    private void addForIterator(int index, T element) {
+        Objects.requireNonNull(element);
         addAndShiftUp(index, element);
     }
 
@@ -173,16 +172,18 @@ public final class CustomArrayList<T> implements List<T> {
     public int indexOf(Object o) {
         return IntStream.range(0, size)
                 .filter(integer -> innerArray[integer].equals(o))
-                .findFirst().orElse(-1);
+                .findFirst()
+                .orElse(-1);
     }
 
     @Override
     public int lastIndexOf(Object o) {
         return IntStream.range(0, size)
                 .boxed()
-                .sorted((x, y) -> -Integer.compare(x, y))
+                .sorted(Collections.reverseOrder())
                 .filter(integer -> innerArray[integer].equals(o))
-                .findAny().orElse(-1);
+                .findFirst()
+                .orElse(-1);
     }
 
     @Override
@@ -200,10 +201,15 @@ public final class CustomArrayList<T> implements List<T> {
         return null;
     }
 
-    private List<T> filterNonDuplicates(Collection<? extends T> toFilter) {
-        return toFilter.stream()
-                .filter((e) -> !contains(e))
+    private List<T> checkAndfilterNonDuplicates(Collection<? extends T> toFilter) {
+        List<T> list = toFilter.stream()
+                .filter((e) -> e != null && !contains(e))
                 .collect(Collectors.toList());
+        if (list.size() < toFilter.size()) {
+            throw new IllegalArgumentException("Duplicate or null element");
+        }
+
+        return list;
     }
 
     private List<T> getIntersection(Collection<?> collection) {
@@ -252,7 +258,7 @@ public final class CustomArrayList<T> implements List<T> {
         innerArray = (T[]) newInnerArray;
     }
 
-    private void addAndShiftUp(Collection<T> newElements) {
+    private void addAndShiftUp(Collection<? extends T> newElements) {
         prepareForBulkAdd(newElements.size());
 
         for (T element : newElements
@@ -261,12 +267,12 @@ public final class CustomArrayList<T> implements List<T> {
         }
     }
 
-    private void addAndShiftUp(int startingIndex, Collection<T> newElements) {
+    private void addAndShiftUp(int startingIndex, Collection<? extends T> newElements) {
         int newElementsSize = newElements.size();
         resizeInnerArray(capacity - startingIndex - newElementsSize);
         System.arraycopy(innerArray, startingIndex, innerArray, startingIndex + newElementsSize, size - startingIndex);
 
-        Iterator<T> newElementsIterator = newElements.iterator();
+        Iterator<? extends T> newElementsIterator = newElements.iterator();
         for (; startingIndex < newElementsSize; startingIndex++) {
             innerArray[startingIndex] = newElementsIterator.next();
         }
@@ -301,5 +307,82 @@ public final class CustomArrayList<T> implements List<T> {
         }
 
         size -= rangeBetweenElementsToSwap;
+    }
+
+    private class CustomListIterator implements ListIterator<T> {
+
+        private int position = 0;
+
+        private int lastReturnedElementIndex;
+
+        private boolean canUseRemove = false;
+
+        @Override
+        public boolean hasNext() {
+            return size > position;
+        }
+
+        @Override
+        public T next() {
+            if (position + 1 > size) {
+                throw new NoSuchElementException();
+            }
+            lastReturnedElementIndex = position++;
+            canUseRemove = true;
+            return innerArray[lastReturnedElementIndex];
+        }
+
+        @Override
+        public boolean hasPrevious() {
+            return position > 0;
+        }
+
+        @Override
+        public T previous() {
+            if (position < 1) {
+                throw new NoSuchElementException();
+            }
+            lastReturnedElementIndex = --position;
+            canUseRemove = true;
+            return innerArray[lastReturnedElementIndex];
+        }
+
+        @Override
+        public int nextIndex() {
+            return position;
+        }
+
+        @Override
+        public int previousIndex() {
+            return position - 1;
+        }
+
+        @Override
+        public void remove() {
+            if (!canUseRemove) {
+                throw new IllegalStateException();
+            }
+            CustomArrayList.this.remove(lastReturnedElementIndex);
+            canUseRemove = false;
+            if (position > lastReturnedElementIndex) {
+                position--;
+            }
+        }
+
+        @Override
+        public void set(T t) {
+            if (canUseRemove) {
+                CustomArrayList.this.set(lastReturnedElementIndex, t);
+            } else {
+                throw new IllegalStateException();
+            }
+        }
+
+        @Override
+        public void add(T t) {
+            CustomArrayList.this.addForIterator(position, t);
+            position++;
+            canUseRemove = false;
+        }
     }
 }
