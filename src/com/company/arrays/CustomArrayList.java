@@ -30,11 +30,11 @@ public final class CustomArrayList<T> implements List<T> {
         return new CustomArrayList<>(collection);
     }
 
-    public static <T> CustomArrayList<T> get(Class<T> elementsClass) {
+    public static <T> CustomArrayList<T> create() {
         return new CustomArrayList<>(DEFAULT_INITIAL_CAPACITY);
     }
 
-    public static <T> CustomArrayList<T> get(Class<T> elementsClass, int capacity) {
+    public static <T> CustomArrayList<T> create(int capacity) {
         return new CustomArrayList<>(capacity);
     }
 
