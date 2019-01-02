@@ -127,7 +127,7 @@ public class CustomLinkedList<T> implements List<T> {
             if (previous != null) {
                 previous.setNext(null);
             } else {
-                node = null;
+                headNode = null;
             }
         }
     }

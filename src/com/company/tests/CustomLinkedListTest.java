@@ -73,6 +73,10 @@ class CustomLinkedListTest {
     @Test
     void remove() {
         customLinkedList.add("a");
+        customLinkedList.remove("a");
+        assertEquals(0, customLinkedList.size());
+        assertFalse(customLinkedList.contains("a"));
+        customLinkedList.add("a");
         customLinkedList.add("b");
         customLinkedList.add("c");
         customLinkedList.add("d");
