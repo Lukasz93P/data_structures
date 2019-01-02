@@ -17,7 +17,7 @@ class CustomArrayListTest {
 
     @BeforeEach
     void setUp() {
-        customArrayList = CustomArrayList.get(String.class, 5);
+        customArrayList = CustomArrayList.create(5);
     }
 
     @Test
