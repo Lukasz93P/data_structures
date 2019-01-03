@@ -53,17 +53,17 @@ class SortArrayTest {
         assertArraysEquality();
     }
 
-//    @Test
-//    void swap() {
-//        int testArrayLength = testArray.length;
-//        int elementAtIndexThree = testArray[3];
-//        int elementAtIndexSix = testArray[6];
-//
-//        SortArray.swap(testArray, 3, 6);
-//        assertEquals(elementAtIndexSix, testArray[3]);
-//        assertEquals(elementAtIndexThree, testArray[6]);
-//        assertEquals(testArrayLength, testArray.length);
-//    }
+    @Test
+    void swap() {
+        int testArrayLength = testArray.length;
+        int elementAtIndexThree = testArray[3];
+        int elementAtIndexSix = testArray[6];
+
+        SortArray.swap(testArray, 3, 6);
+        assertEquals(elementAtIndexSix, testArray[3]);
+        assertEquals(elementAtIndexThree, testArray[6]);
+        assertEquals(testArrayLength, testArray.length);
+    }
 
     private void assertArraysEquality() {
         for (int i = 0; i < sortedTestArray.length; i++) {

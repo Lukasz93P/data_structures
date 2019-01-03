@@ -1,18 +1,18 @@
 package com.company.arrays;
 
-import java.util.Arrays;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class SortArray {
+
+    private static final ExecutorService executorService = Executors.newCachedThreadPool();
+
+    private static final Runtime runtime = Runtime.getRuntime();
 
     private SortArray() {
         throw new UnsupportedOperationException();
     }
-
-//    public static void main(String[] args) {
-//        int[] a = new int[]{1,2,3,4,5,6,7};
-//        reverse(a);
-//        Arrays.stream(a).forEach(System.out::println);
-//    }
 
     public static void bubbleSort(int[] array) {
         for (int lastUnsortedElementIndex = array.length - 1; lastUnsortedElementIndex > 0; lastUnsortedElementIndex--) {
@@ -27,12 +27,12 @@ public class SortArray {
     public static void selectionSort(int[] array) {
         for (int lastUnsortedElementIndex = array.length - 1; lastUnsortedElementIndex > 0; lastUnsortedElementIndex--) {
             int highestValueElementIndex = 0;
-            for (int i = 0; i <= lastUnsortedElementIndex; i++) {
+            for (int i = 1; i <= lastUnsortedElementIndex; i++) {
                 if (array[i] >= array[highestValueElementIndex]) {
                     highestValueElementIndex = i;
                 }
             }
-            swap(array, lastUnsortedElementIndex, highestValueElementIndex);
+            swap(array, highestValueElementIndex, lastUnsortedElementIndex);
         }
     }
 
@@ -62,114 +62,56 @@ public class SortArray {
     }
 
     public static void mergeSort(int[] array, int start, int end) {
-        if (end - start < 2) {
-            return;
-        }
-        int middleIndex = (start + end) / 2;
-        mergeSort(array, start, middleIndex);
-        mergeSort(array, middleIndex, end);
-        merge(array, start, middleIndex, end);
+        parallelMergeSort(array, start, end, runtime.availableProcessors(), null);
     }
 
-    private static void merge(int[] array, int start, int middle, int end) {
-        if (array[middle - 1] < array[middle]) {
+    private static void parallelMergeSort(int[] array, int start, int end, int numThreads, CountDownLatch countDownLatch) {
+        if (end - start < 2) {
+            if (countDownLatch != null) {
+                countDownLatch.countDown();
+            }
+            return;
+        }
+        int middle = (start + end) / 2;
+
+        if (numThreads >= 2) {
+            CountDownLatch selfCountdown = new CountDownLatch(2);
+            executorService.submit(() -> SortArray.parallelMergeSort(array, start, middle, numThreads - 2, selfCountdown));
+            executorService.submit(() -> SortArray.parallelMergeSort(array, middle, end, numThreads - 2, selfCountdown));
+            try {
+                selfCountdown.await();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        } else {
+            parallelMergeSort(array, start, middle, numThreads - 2, null);
+            parallelMergeSort(array, middle, end, numThreads - 2, null);
+        }
+        merge(array, start, middle, end);
+        if (countDownLatch != null) {
+            countDownLatch.countDown();
+        }
+    }
+
+    public static void merge(int[] array, int start, int middle, int end) {
+        if (array[middle - 1] <= array[middle]) {
             return;
         }
         int[] tempArray = new int[end - start];
         int tempArrayIndex = 0;
 
-        int leftArrayCounter = start;
-        int rightArrayCounter = middle;
+        int leftArrayIterator = start;
+        int rightArrayIterator = middle;
 
-        while (leftArrayCounter < middle && rightArrayCounter < end) {
-            tempArray[tempArrayIndex++] = array[leftArrayCounter] <= array[rightArrayCounter]
-                    ? array[leftArrayCounter++]
-                    : array[rightArrayCounter++];
+        while (leftArrayIterator < middle && rightArrayIterator < end) {
+            tempArray[tempArrayIndex++] = array[leftArrayIterator] <= array[rightArrayIterator]
+                    ? array[leftArrayIterator++]
+                    : array[rightArrayIterator++];
         }
-        System.arraycopy(array, leftArrayCounter, array, start + tempArrayIndex, middle - leftArrayCounter);
+
+        System.arraycopy(array, leftArrayIterator, array, start + tempArrayIndex, middle - leftArrayIterator);
         System.arraycopy(tempArray, 0, array, start, tempArrayIndex);
     }
-
-
-//    public static void bubbleSort(int[] array) {
-//        for (int lastUnsortedElementIndex = array.length - 1; lastUnsortedElementIndex > 0; lastUnsortedElementIndex--) {
-//            for (int i = 0; i < lastUnsortedElementIndex; i++) {
-//                if (array[i] > array[i + 1]) {
-//                    swap(array, i, i + 1);
-//                }
-//            }
-//        }
-//    }
-//
-//    public static void selectionSort(int[] array) {
-//        for (int lastUnsortedElementIndex = array.length - 1; lastUnsortedElementIndex > 0; lastUnsortedElementIndex--) {
-//            int highestValueElementIndex = 0;
-//            for (int i = 1; i <= lastUnsortedElementIndex; i++) {
-//                if (array[i] >= array[highestValueElementIndex]) {
-//                    highestValueElementIndex = i;
-//                }
-//            }
-//            swap(array, highestValueElementIndex, lastUnsortedElementIndex);
-//        }
-//    }
-//
-//    public static void insertionSort(int[] array) {
-//        for (int firstUnsortedElementIndex = 1; firstUnsortedElementIndex < array.length; firstUnsortedElementIndex++) {
-//            int temp = array[firstUnsortedElementIndex];
-//            int counter = firstUnsortedElementIndex;
-//            while (counter > 0 && array[counter - 1] > array[counter]) {
-//                swap(array, counter, counter - 1);
-//                counter--;
-//            }
-//            array[counter] = temp;
-//        }
-//    }
-//
-//    public static void shellInsertionSort(int[] array) {
-//        for (int gap = array.length / 2; gap > 0; gap /= 2) {
-//            for (int i = gap; i < array.length; i++) {
-//                int temp = array[i];
-//                int counter = i;
-//                while (counter >= gap && array[counter - gap] > array[counter]) {
-//                    swap(array, counter, counter - gap);
-//                    counter -= gap;
-//                }
-//                array[counter] = temp;
-//            }
-//        }
-//    }
-//
-//    public static void mergeSort(int[] array, int start, int end) {
-//        if (end - start < 2) {
-//            return;
-//        }
-//
-//        int middle = (start + end) / 2;
-//        mergeSort(array, start, middle);
-//        mergeSort(array, middle, end);
-//        merge(array, start, middle, end);
-//    }
-//
-//    private static void merge(int[] array, int start, int middle, int end) {
-//        if (array[middle - 1] < array[middle]) {
-//            return;
-//        }
-//
-//        int[] tempArray = new int[end - start];
-//        int tempArrayIndex = 0;
-//
-//        int leftArrayIterator = start;
-//        int rightArrayIterator = middle;
-//
-//        while (leftArrayIterator < middle && rightArrayIterator < end) {
-//            tempArray[tempArrayIndex++] = array[leftArrayIterator] <= array[rightArrayIterator]
-//                    ? array[leftArrayIterator++]
-//                    : array[rightArrayIterator++];
-//        }
-//
-//        System.arraycopy(array, leftArrayIterator, array, start + tempArrayIndex, middle - leftArrayIterator);
-//        System.arraycopy(tempArray, 0, array, start, tempArrayIndex);
-//    }
 
     public static void swap(int[] array, int firstIndex, int secondIndex) {
         if (firstIndex == secondIndex) {
