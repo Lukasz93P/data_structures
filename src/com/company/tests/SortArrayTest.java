@@ -48,8 +48,14 @@ class SortArrayTest {
     }
 
     @Test
-    void mergeSort(){
-        SortArray.mergeSort(testArray, 0, testArray.length);
+    void mergeSort() {
+        SortArray.forkJoinMergeSort(testArray);
+        assertArraysEquality();
+    }
+
+    @Test
+    void parallelMergeSort() {
+        SortArray.parallelMergeSort(testArray);
         assertArraysEquality();
     }
 

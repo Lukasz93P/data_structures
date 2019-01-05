@@ -1,14 +1,15 @@
 package com.company.arrays;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.List;
+import java.util.concurrent.*;
 
 public class SortArray {
 
     private static final ExecutorService executorService = Executors.newCachedThreadPool();
 
     private static final Runtime runtime = Runtime.getRuntime();
+
+    private static final ForkJoinPool forkJoinPool = ForkJoinPool.commonPool();
 
     private SortArray() {
         throw new UnsupportedOperationException();
@@ -61,11 +62,11 @@ public class SortArray {
         }
     }
 
-    public static void mergeSort(int[] array, int start, int end) {
-        parallelMergeSort(array, start, end, runtime.availableProcessors(), null);
+    public static void parallelMergeSort(int[] array) {
+        countdownLatchMergeSort(array, 0, array.length, runtime.availableProcessors(), null);
     }
 
-    private static void parallelMergeSort(int[] array, int start, int end, int numThreads, CountDownLatch countDownLatch) {
+    private static void countdownLatchMergeSort(int[] array, int start, int end, int availableCores, CountDownLatch countDownLatch) {
         if (end - start < 2) {
             if (countDownLatch != null) {
                 countDownLatch.countDown();
@@ -73,30 +74,60 @@ public class SortArray {
             return;
         }
         int middle = (start + end) / 2;
-
-        if (numThreads >= 2) {
+        if (availableCores >= 2) {
             CountDownLatch selfCountdown = new CountDownLatch(2);
-            executorService.submit(() -> SortArray.parallelMergeSort(array, start, middle, numThreads - 2, selfCountdown));
-            executorService.submit(() -> SortArray.parallelMergeSort(array, middle, end, numThreads - 2, selfCountdown));
+            executorService.submit(() -> countdownLatchMergeSort(array, start, middle, availableCores - 2, selfCountdown));
+            executorService.submit(() -> countdownLatchMergeSort(array, middle, end, availableCores - 2, selfCountdown));
             try {
                 selfCountdown.await();
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         } else {
-            parallelMergeSort(array, start, middle, numThreads - 2, null);
-            parallelMergeSort(array, middle, end, numThreads - 2, null);
+            countdownLatchMergeSort(array, start, middle, availableCores - 2, null);
+            countdownLatchMergeSort(array, middle, end, availableCores - 2, null);
         }
+
         merge(array, start, middle, end);
         if (countDownLatch != null) {
             countDownLatch.countDown();
         }
     }
 
-    public static void merge(int[] array, int start, int middle, int end) {
+    public static void forkJoinMergeSort(int[] array) {
+        forkJoinPool.invoke(new ForkJoinMergeSort(array, 0, array.length));
+    }
+
+    private static class ForkJoinMergeSort extends RecursiveAction {
+        private int[] array;
+        private int start;
+        private int end;
+
+        private ForkJoinMergeSort(int[] array, int start, int end) {
+            this.array = array;
+            this.start = start;
+            this.end = end;
+        }
+
+        @Override
+        protected void compute() {
+            if (end - start < 2) {
+                return;
+            }
+
+            int middle = (start + end) / 2;
+            ForkJoinTask.invokeAll(List.of(new ForkJoinMergeSort(array, start, middle),
+                    new ForkJoinMergeSort(array, middle, end)));
+
+            merge(array, start, middle, end);
+        }
+    }
+
+    private static void merge(int[] array, int start, int middle, int end) {
         if (array[middle - 1] <= array[middle]) {
             return;
         }
+
         int[] tempArray = new int[end - start];
         int tempArrayIndex = 0;
 
